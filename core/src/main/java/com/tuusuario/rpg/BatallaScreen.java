@@ -36,10 +36,13 @@ public class BatallaScreen implements Screen {
     private Skin skin;
     private SpriteBatch batch;
 
-    // Texturas de escena
+    // Texturas de escena y UI
     private Texture texFondo;
-    private Texture texJugadorEspalda;
+    private Texture texJugadorNormal;
+    private Texture texJugadorDanado;
+    private Texture texJugadorActual;
     private Texture texEnemigo;
+    private Image imgRetrato;
 
     // Música de fondo
     private Music musicaBatalla;
@@ -83,7 +86,9 @@ public class BatallaScreen implements Screen {
 
         // Cargar texturas de sprites
         texFondo = new Texture(Gdx.files.internal("ClaseFondo.png"));
-        texJugadorEspalda = new Texture(Gdx.files.internal(obtenerRutaImagenJugador(jugador)));
+        texJugadorNormal = new Texture(Gdx.files.internal(obtenerRutaImagenJugador(jugador)));
+        texJugadorDanado = new Texture(Gdx.files.internal(obtenerRutaImagenJugadorDanado(jugador)));
+        texJugadorActual = texJugadorNormal;
 
         // Cargar Enemigo desde la BD
         try {
@@ -97,11 +102,10 @@ public class BatallaScreen implements Screen {
         }
 
         if (enemigo == null) {
-            enemigo = new Enemigo("Enemigo de Prueba", 50, 10, 2,1);
+            enemigo = new Enemigo("Enemigo de Prueba", 50, 10, 2, 1);
         }
 
         texEnemigo = new Texture(Gdx.files.internal(obtenerRutaImagenEnemigo(enemigo)));
-
 
         // Guardar valores máximos e inicializar lógica
         if (jugador != null) {
@@ -141,11 +145,10 @@ public class BatallaScreen implements Screen {
         menuComandos.add(btnDefender).fillX().padBottom(5).row();
         menuComandos.add(btnHuir).fillX();
 
-        // --- Tarjeta del Personaje (Centro - Estilo Fear & Hunger) ---
+        // --- Tarjeta del Personaje (Centro) ---
         Table tarjetaPJ = new Table(skin);
-
         Label lblNombrePJ = new Label(jugador != null ? jugador.getNombre() : "Héroe", skin);
-        Image imgRetrato = new Image(texJugadorEspalda);
+        imgRetrato = new Image(texJugadorActual);
 
         // Barras de progreso de PS (rojo) y PM (azul)
         barVida = new ProgressBar(0, psMaxJugador, 1, false, crearEstiloBarra(new Color(0.85f, 0.15f, 0.15f, 1f)));
@@ -162,7 +165,7 @@ public class BatallaScreen implements Screen {
         filaManaTexto.add(new Label("PM", skin)).left().expandX();
         filaManaTexto.add(lblManaValor).right();
 
-        // Construcción vertical de la tarjeta[cite: 1]
+        // Construcción vertical de la tarjeta
         tarjetaPJ.add(lblNombrePJ).center().padBottom(4).row();
         tarjetaPJ.add(imgRetrato).size(110, 140).padBottom(6).row();
         tarjetaPJ.add(filaVidaTexto).fillX().row();
@@ -276,14 +279,20 @@ public class BatallaScreen implements Screen {
         }
     }
 
-
-
     private String obtenerRutaImagenJugador(Personaje p) {
         if (p instanceof Camorrista) return "camorrista.png";
         if (p instanceof Piromano) return "piromano.png";
         if (p instanceof QuarterBack) return "quarterback.png";
         if (p instanceof Matemático) return "matematico.png";
         return "camorristaSprite.png";
+    }
+
+    private String obtenerRutaImagenJugadorDanado(Personaje p) {
+        if (p instanceof Camorrista) return "CamorristaDanado.png";
+        if (p instanceof Piromano) return "PiromanoDanado.png";
+        if (p instanceof QuarterBack) return "QuarterbackDanado.png";
+        if (p instanceof Matemático) return "MatematicoDanado.png";
+        return "camorristaDanado.png";
     }
 
     private void procesarTurnoEnemigo() {
@@ -320,6 +329,24 @@ public class BatallaScreen implements Screen {
         }
     }
 
+    private void actualizarSpriteJugador() {
+        if (jugador == null) return;
+
+        // Calculamos si la salud actual es menor o igual al 30% del máximo
+        float porcentajeSalud = (float) jugador.getPs() / psMaxJugador;
+
+        Texture nuevaTextura = (porcentajeSalud <= 0.3f) ? texJugadorDanado : texJugadorNormal;
+
+        // Cambiar la imagen del cuadro en la barra si la textura cambia
+        if (texJugadorActual != nuevaTextura) {
+            texJugadorActual = nuevaTextura;
+
+            if (imgRetrato != null) {
+                imgRetrato.setDrawable(new TextureRegionDrawable(new TextureRegion(texJugadorActual)));
+            }
+        }
+    }
+
     @Override
     public void render(float delta) {
         Gdx.gl.glClearColor(0.05f, 0.05f, 0.05f, 1);
@@ -329,6 +356,10 @@ public class BatallaScreen implements Screen {
         float alto = Gdx.graphics.getHeight();
 
         batch.setProjectionMatrix(escenarioUI.getCamera().combined);
+
+        // Actualiza el sprite de la tarjeta si es necesario
+        actualizarSpriteJugador();
+
         batch.begin();
 
         // 1. Fondo de pantalla
@@ -381,7 +412,8 @@ public class BatallaScreen implements Screen {
         skin.dispose();
 
         if (texFondo != null) texFondo.dispose();
-        if (texJugadorEspalda != null) texJugadorEspalda.dispose();
+        if (texJugadorNormal != null) texJugadorNormal.dispose();
+        if (texJugadorDanado != null) texJugadorDanado.dispose();
         if (texEnemigo != null) texEnemigo.dispose();
 
         if (musicaBatalla != null) {
